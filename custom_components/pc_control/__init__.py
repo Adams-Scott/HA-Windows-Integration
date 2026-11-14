@@ -7,10 +7,12 @@ from dataclasses import dataclass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import PcControlApi
 from .const import (
+    DOMAIN,
     CONF_BROADCAST,
     CONF_HOSTNAME,
     CONF_MAC,
@@ -87,9 +89,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: PcControlConfigEntry) ->
         uid_base=entry.unique_id or entry.entry_id,
     )
 
+    _remove_retired_entities(hass, entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     return True
+
+
+# Entities replaced by the Power switch in 1.1.0: (domain, unique_id suffix).
+_RETIRED = (("binary_sensor", "online"), ("button", "wake"), ("button", "shutdown"))
+
+
+def _remove_retired_entities(hass: HomeAssistant, entry: PcControlConfigEntry) -> None:
+    registry = er.async_get(hass)
+    uid_base = entry.runtime_data.uid_base
+    for domain, key in _RETIRED:
+        if entity_id := registry.async_get_entity_id(domain, DOMAIN, f"{uid_base}_{key}"):
+            registry.async_remove(entity_id)
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: PcControlConfigEntry) -> None:

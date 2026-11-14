@@ -73,13 +73,13 @@
   },
   "entity": {
     "binary_sensor": {
-      "online": { "name": "Online" },
       "agent": { "name": "Agent" }
     },
     "button": {
-      "wake": { "name": "Wake" },
-      "shutdown": { "name": "Shut down" },
       "rescan": { "name": "Rescan" }
+    },
+    "switch": {
+      "power": { "name": "Power" }
     }
   }
 }

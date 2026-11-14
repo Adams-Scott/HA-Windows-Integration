@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
@@ -14,14 +15,21 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import PcControlConfigEntry
-from .api import ApiError, CannotConnect, InvalidAuth
-from .const import ATTR_PENDING, PENDING_WAKING, STATE_OFF, STATE_ON
-from .coordinator import AgentEntityInfo, PcControlCoordinator
+from .api import ApiError, CannotConnect, InvalidAuth, PcControlError
+from .const import ATTR_PENDING, PENDING_WAKING, STATE_OFF, STATE_ON, WOL_REPEAT
+from .coordinator import AgentEntityInfo, PcControlCoordinator, PingCoordinator
 from .entity import PcControlEntity
 
 _LOGGER = logging.getLogger(__package__)
 
 PARALLEL_UPDATES = 0
+
+POWER_KEY = "power"
+# How long a Power command's target state is shown before ping/agent state wins again.
+# A boot (with auto-login) and a shutdown both take a while, so these are longer than
+# the 15 s hold used for program switches.
+POWER_ON_HOLD = 180
+POWER_OFF_HOLD = 120
 
 
 async def async_setup_entry(
@@ -33,6 +41,8 @@ async def async_setup_entry(
     rt = entry.runtime_data
     coordinator = rt.coordinator
     added: dict[str, PcControlSwitch] = {}
+
+    async_add_entities([PowerSwitch(entry)])
 
     @callback
     def _sync() -> None:
@@ -50,6 +60,7 @@ async def async_setup_entry(
         if not coordinator.agent_online:
             return
         expected = {f"{rt.uid_base}_{agent_id}" for agent_id in coordinator.known}
+        expected.add(f"{rt.uid_base}_{POWER_KEY}")
         registry = er.async_get(hass)
         for reg in er.async_entries_for_config_entry(registry, entry.entry_id):
             if reg.domain == Platform.SWITCH and reg.unique_id not in expected:
@@ -60,6 +71,68 @@ async def async_setup_entry(
 
     _sync()
     entry.async_on_unload(coordinator.async_add_listener(_sync))
+
+
+class PowerSwitch(PcControlEntity, CoordinatorEntity[PingCoordinator], SwitchEntity):
+    """The PC's power: on while it answers ping (or the agent answers).
+
+    Turning on sends Wake-on-LAN (nothing if already on); turning off shuts the PC down.
+    After a command the target state is shown until the PC reaches it or the hold expires.
+    """
+
+    _attr_translation_key = "power"
+    _attr_icon = "mdi:power"
+
+    def __init__(self, entry: PcControlConfigEntry) -> None:
+        CoordinatorEntity.__init__(self, entry.runtime_data.ping)
+        PcControlEntity.__init__(self, entry, POWER_KEY)
+        self._target: bool | None = None
+        self._target_until = 0.0
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        # The agent answering also means the PC is on (e.g. where ICMP is blocked).
+        self.async_on_remove(
+            self._rt.coordinator.async_add_listener(self._handle_coordinator_update)
+        )
+
+    @property
+    def _actual(self) -> bool:
+        return bool(self.coordinator.data) or self._rt.coordinator.agent_online
+
+    @property
+    def is_on(self) -> bool:
+        actual = self._actual
+        if self._target is not None:
+            if actual == self._target or time.monotonic() >= self._target_until:
+                self._target = None
+            else:
+                return self._target
+        return actual
+
+    def _set_target(self, on: bool, hold: float) -> None:
+        self._target = on
+        self._target_until = time.monotonic() + hold
+        self.async_write_ha_state()
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        if self._actual:
+            _LOGGER.debug("%s is already on; not sending WOL", self._rt.host_name)
+            return
+        self._set_target(True, POWER_ON_HOLD)
+        await self._rt.wake.async_send_wol(WOL_REPEAT)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        if not self._rt.coordinator.agent_online:
+            if not self._actual:
+                return  # Already off.
+            raise HomeAssistantError("PC agent is not reachable")
+        try:
+            await self._rt.api.shutdown()
+        except PcControlError as err:
+            raise HomeAssistantError("PC agent is not reachable") from err
+        self._set_target(False, POWER_OFF_HOLD)
+        await self.coordinator.async_request_refresh()
 
 
 class PcControlSwitch(PcControlEntity, CoordinatorEntity[PcControlCoordinator], SwitchEntity):

@@ -7,7 +7,7 @@ The project has two parts:
 | Part | What it is |
 | --- | --- |
 | **PC Control Agent** (`agent/`) | A .NET 10 tray app for Windows. It scans a folder of PowerShell scripts and your Steam library, and serves them through a token-protected REST API on your LAN. |
-| **PC Control integration** (`custom_components/pc_control/`) | A Home Assistant custom integration, installed through HACS. It shows each script and game as a switch and adds Online/Agent sensors plus Wake, Shut down and Rescan buttons. |
+| **PC Control integration** (`custom_components/pc_control/`) | A Home Assistant custom integration, installed through HACS. It shows each script and game as a switch, adds a Power switch (wake, shut down, online status), an Agent sensor and a Rescan button. |
 
 ## 1. Set up the PC
 
@@ -138,12 +138,12 @@ All entities belong to one device named after the PC:
 
 | Entity | Behaviour |
 | --- | --- |
-| `<PC> Online` | Ping every 10 s |
+| `<PC> Power` (switch) | On while the PC answers ping (checked every 10 s) or the agent answers. Turning it on sends Wake-on-LAN; turning it off shuts the PC down after 5 s. After either, it shows the new state while the PC boots (up to 3 min) or shuts down (up to 2 min) |
 | `<PC> Agent` (diagnostic) | On when the agent API answers |
 | One switch per script and game | On/off runs the script or starts/stops the game |
-| `<PC> Wake` | Sends Wake-on-LAN (does nothing if the PC is online) |
-| `<PC> Shut down` | Shuts the PC down after 5 s |
 | `<PC> Rescan` | Rescans scripts and games |
+
+Upgrading from 1.0: the Power switch replaces the `Online` sensor and the `Wake` and `Shut down` buttons. They're removed automatically, so update any automations that used them.
 
 **Switches stay available while the PC is off** and show off. Turning one on then:
 
