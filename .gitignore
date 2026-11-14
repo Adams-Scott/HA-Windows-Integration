@@ -1,0 +1,11 @@
+bin/
+obj/
+publish/
+*.user
+.vs/
+.vscode/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="PcControl.Agent/PcControl.Agent.csproj" />
+  <Project Path="PcControl.Agent.Tests/PcControl.Agent.Tests.csproj" />
+</Solution>

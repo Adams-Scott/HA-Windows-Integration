@@ -1,0 +1,85 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to the PC",
+        "description": "Enter the address of the PC running PC Control Agent. Get the token from the tray icon: **Copy API token**.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "token": "API token"
+        },
+        "data_description": {
+          "host": "IP address or hostname of the PC. A DHCP reservation is recommended.",
+          "port": "The agent's port (8765 unless changed in config.json)."
+        }
+      },
+      "wake": {
+        "title": "Wake-on-LAN",
+        "description": "Choose the network adapter of {hostname} that receives Wake-on-LAN packets. The wired adapter is listed first.",
+        "data": {
+          "mac": "MAC address",
+          "broadcast_address": "Broadcast address",
+          "wol_port": "Wake-on-LAN port"
+        }
+      },
+      "reauth_confirm": {
+        "title": "New API token",
+        "description": "The agent on {name} rejected the stored token. Paste the current one from the tray icon: **Copy API token**.",
+        "data": {
+          "token": "API token"
+        }
+      },
+      "reconfigure": {
+        "title": "Change connection",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "token": "API token"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect",
+      "invalid_auth": "Invalid token",
+      "invalid_mac": "Not a valid MAC address",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This PC is already configured",
+      "reauth_successful": "Token updated",
+      "reconfigure_successful": "Connection updated"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "PC Control options",
+        "data": {
+          "poll_interval": "Poll interval",
+          "wake_timeout": "Wake timeout",
+          "mac": "MAC address",
+          "broadcast_address": "Broadcast address",
+          "wol_port": "Wake-on-LAN port"
+        },
+        "data_description": {
+          "wake_timeout": "How long to wait for the agent after sending Wake-on-LAN before giving up."
+        }
+      }
+    },
+    "error": {
+      "invalid_mac": "Not a valid MAC address"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "online": { "name": "Online" },
+      "agent": { "name": "Agent" }
+    },
+    "button": {
+      "wake": { "name": "Wake" },
+      "shutdown": { "name": "Shut down" },
+      "rescan": { "name": "Rescan" }
+    }
+  }
+}
