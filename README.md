@@ -162,6 +162,25 @@ The entity list is saved in Home Assistant, so the switches survive a restart of
 - **The PC has a stable IP**, ideally a DHCP reservation.
 - **The PC logs in automatically** after boot, so the agent (which runs in your user session) starts on its own.
 
+## Troubleshooting
+
+### "Cannot connect" when adding the PC
+
+Check the agent locally first: `http://localhost:8765/api/v1/health` in a browser on the PC should show `{"status":"ok",...}`. If it does, Windows Firewall is blocking the LAN. From an elevated PowerShell:
+
+```powershell
+Get-NetConnectionProfile                                  # which networks are Public?
+Get-NetFirewallRule -DisplayName 'PC Control Agent'       # the rule from setup must exist
+```
+
+- **The network is Public.** The firewall rule only covers Private networks. On a trusted home network, run `Set-NetConnectionProfile -InterfaceAlias '<name>' -NetworkCategory Private`.
+- **Hyper-V external switch.** If Hyper-V shares your Ethernet card, the PC's IP sits on `vEthernet (...)`, and that adapter's profile is what counts. It is often Public even when your Ethernet was set to Private.
+- **Block rules from a dismissed prompt.** If you closed the "Allow access?" prompt when the agent first started, Windows may have added Block rules for `PcControl.Agent.exe`. Remove them with:
+
+  ```powershell
+  Get-NetFirewallApplicationFilter | Where-Object Program -like '*pccontrol.agent.exe' | Get-NetFirewallRule | Where-Object Action -eq Block | Remove-NetFirewallRule
+  ```
+
 ## API
 
 JSON over HTTP at `http://<pc>:8765/api/v1`. Every endpoint except `/health` requires `Authorization: Bearer <token>`.
