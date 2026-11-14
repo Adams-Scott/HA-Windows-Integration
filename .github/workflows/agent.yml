@@ -2,8 +2,10 @@ name: Agent
 
 on:
   push:
+    branches: ["**"]
     paths: ["agent/**", ".github/workflows/agent.yml"]
-    tags: ["v*"]
+  release:
+    types: [published]
   pull_request:
     paths: ["agent/**"]
   workflow_dispatch:
@@ -32,7 +34,7 @@ jobs:
           path: publish/PcControl.Agent.exe
 
       - name: Attach to release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: publish/PcControl.Agent.exe
